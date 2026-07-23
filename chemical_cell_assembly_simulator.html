@@ -1,0 +1,1729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chemical and Cell Assembly Simulator</title>
+<style>
+  :root{
+    --paper:#ffffff;
+    --panel:#f4f4f4;
+    --line:#222222;
+    --soft:#d8d8d8;
+    --text:#111111;
+    --muted:#5b5b5b;
+    --active:#dbe8ff;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;background:#dcdcdc;color:var(--text);font-family:"Courier New",monospace;overflow:hidden}
+  button,input,select,textarea{font:inherit;color:inherit}
+  button,select,input,textarea{
+    border:1px solid var(--line);
+    border-radius:0;
+    background:#fff;
+    min-height:28px;
+  }
+  button{padding:5px 8px;cursor:pointer}
+  button:hover{background:#ececec}
+  button:active{background:#d8d8d8}
+  button.primary{background:#e8eef8;font-weight:bold}
+  button.danger{background:#f8e8e8}
+  input,select{padding:4px}
+  textarea{padding:6px;resize:vertical}
+  .app{
+    height:100%;
+    display:grid;
+    grid-template-rows:42px minmax(0,1fr) 24px;
+    border:1px solid var(--line);
+    background:var(--paper);
+  }
+  .titlebar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:0 10px;
+    background:#efefef;
+    border-bottom:1px solid var(--line);
+    letter-spacing:.4px;
+  }
+  .titlebar strong{font-size:15px}
+  .titlebar span{font-size:12px;color:var(--muted)}
+  .workspace{
+    min-height:0;
+    display:grid;
+    grid-template-columns:300px minmax(420px,1fr) 340px;
+  }
+  .panel{
+    min-height:0;
+    background:var(--panel);
+    border-right:1px solid var(--line);
+    overflow:auto;
+  }
+  .panel.right{border-right:0;border-left:1px solid var(--line)}
+  .section{border-bottom:1px solid var(--line)}
+  .section-title{
+    padding:7px 8px;
+    background:#e7e7e7;
+    border-bottom:1px solid var(--line);
+    font-weight:bold;
+    font-size:12px;
+    letter-spacing:.3px;
+  }
+  .section-body{padding:8px}
+  .field{display:grid;grid-template-columns:1fr 100px;gap:6px;align-items:center;margin-bottom:6px;font-size:12px}
+  .field.wide{grid-template-columns:1fr}
+  .button-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .button-grid.single{grid-template-columns:1fr}
+  .button-grid.three{grid-template-columns:1fr 1fr 1fr}
+  .viewport-wrap{
+    min-width:0;
+    min-height:0;
+    position:relative;
+    background:#fff;
+    overflow:hidden;
+  }
+  #view{
+    width:100%;
+    height:100%;
+    display:block;
+    outline:none;
+    cursor:crosshair;
+  }
+  .viewport-label{
+    position:absolute;
+    top:8px;
+    left:8px;
+    padding:4px 6px;
+    background:rgba(255,255,255,.92);
+    border:1px solid var(--line);
+    font-size:11px;
+    pointer-events:none;
+  }
+  .viewport-help{
+    position:absolute;
+    bottom:8px;
+    left:8px;
+    right:8px;
+    padding:5px 7px;
+    background:rgba(255,255,255,.92);
+    border:1px solid var(--line);
+    font-size:11px;
+    pointer-events:none;
+  }
+  .readout{
+    width:100%;
+    border-collapse:collapse;
+    font-size:12px;
+  }
+  .readout td{
+    padding:4px 5px;
+    border:1px solid #777;
+    background:#fff;
+    vertical-align:top;
+  }
+  .readout td:first-child{width:46%;background:#ededed}
+  .inventory{
+    width:100%;
+    border-collapse:collapse;
+    font-size:11px;
+  }
+  .inventory th,.inventory td{border:1px solid #777;padding:4px;text-align:left}
+  .inventory th{background:#e5e5e5;position:sticky;top:0}
+  .log{
+    height:180px;
+    overflow:auto;
+    border:1px solid var(--line);
+    background:#fff;
+    padding:5px;
+    font-size:11px;
+    white-space:pre-wrap;
+    line-height:1.35;
+  }
+  .reaction-list{
+    max-height:215px;
+    overflow:auto;
+    border:1px solid var(--line);
+    background:#fff;
+  }
+  .reaction-row{
+    padding:6px;
+    border-bottom:1px solid #aaa;
+    cursor:pointer;
+    font-size:11px;
+  }
+  .reaction-row:last-child{border-bottom:0}
+  .reaction-row:hover{background:#eee}
+  .reaction-row.selected{background:var(--active)}
+  .statusbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:0 8px;
+    background:#ececec;
+    border-top:1px solid var(--line);
+    font-size:11px;
+  }
+  .tabs{display:flex;border-bottom:1px solid var(--line)}
+  .tab{
+    flex:1;
+    padding:6px 4px;
+    background:#e8e8e8;
+    border:0;
+    border-right:1px solid var(--line);
+    min-height:28px;
+    font-size:11px;
+  }
+  .tab:last-child{border-right:0}
+  .tab.active{background:#fff;font-weight:bold}
+  .tab-page{display:none}
+  .tab-page.active{display:block}
+  .notice{
+    border:1px solid #777;
+    background:#fff;
+    padding:6px;
+    font-size:11px;
+    line-height:1.35;
+  }
+  .modal{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,.38);
+    align-items:center;
+    justify-content:center;
+    z-index:20;
+  }
+  .modal.open{display:flex}
+  .modal-window{
+    width:min(900px,92vw);
+    height:min(650px,88vh);
+    background:#f4f4f4;
+    border:2px solid #111;
+    display:grid;
+    grid-template-rows:36px minmax(0,1fr);
+  }
+  .modal-title{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:0 8px;
+    border-bottom:1px solid #111;
+    background:#e6e6e6;
+  }
+  .modal-body{
+    min-height:0;
+    display:grid;
+    grid-template-columns:minmax(0,1fr) 300px;
+  }
+  #detailView{width:100%;height:100%;display:block;background:#fff;border-right:1px solid #111}
+  .detail-text{padding:8px;overflow:auto;font-size:12px;line-height:1.45}
+  .small{font-size:11px;color:var(--muted)}
+  @media (max-width:1100px){
+    .workspace{grid-template-columns:260px minmax(360px,1fr) 300px}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="titlebar">
+    <strong>CHEMICAL AND CELL ASSEMBLY SIMULATOR</strong>
+    <span>Single-file educational laboratory</span>
+  </div>
+
+  <div class="workspace">
+    <aside class="panel">
+      <div class="section">
+        <div class="section-title">SUBSTANCE INPUT</div>
+        <div class="section-body">
+          <div class="field">
+            <label for="substanceSelect">Substance</label>
+            <select id="substanceSelect"></select>
+          </div>
+          <div class="field">
+            <label for="amountInput">Amount in moles</label>
+            <input id="amountInput" type="number" min="0.01" step="0.10" value="1.00">
+          </div>
+          <div class="button-grid">
+            <button id="addSubstance" class="primary">Add to Vessel</button>
+            <button id="removeSubstance">Remove Amount</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">LABORATORY ACTIONS</div>
+        <div class="section-body">
+          <div class="button-grid three">
+            <button id="mixButton">Mix</button>
+            <button id="heatButton">Heat</button>
+            <button id="coolButton">Cool</button>
+          </div>
+          <div style="height:6px"></div>
+          <div class="button-grid">
+            <button id="igniteButton">Apply Ignition</button>
+            <button id="lightButton">Visible Light Off</button>
+          </div>
+          <div style="height:6px"></div>
+          <div class="button-grid">
+            <button id="catalystButton">Catalyst Off</button>
+            <button id="runReaction" class="primary">Start Reaction</button>
+          </div>
+          <div style="height:6px"></div>
+          <div class="button-grid">
+            <button id="pauseButton">Pause Motion</button>
+            <button id="clearButton" class="danger">Clear Vessel</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">BIOLOGICAL CELL INPUT</div>
+        <div class="section-body">
+          <div class="field">
+            <label for="cellSelect">Cell type</label>
+            <select id="cellSelect"></select>
+          </div>
+          <div class="button-grid">
+            <button id="addCell">Insert Cell</button>
+            <button id="removeCells">Remove Cells</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">ELECTROCHEMICAL DEVICE</div>
+        <div class="section-body">
+          <div class="field">
+            <label for="deviceSelect">Device type</label>
+            <select id="deviceSelect"></select>
+          </div>
+          <div class="button-grid">
+            <button id="addDevice">Insert Device</button>
+            <button id="removeDevices">Remove Devices</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">FLEXIBLE REACTION LANGUAGE</div>
+        <div class="section-body">
+          <textarea id="reactionText" rows="4">two hydrogen molecules plus one oxygen molecule produces two water molecules</textarea>
+          <div style="height:6px"></div>
+          <div class="button-grid single">
+            <button id="interpretButton">Interpret and Load Reaction</button>
+          </div>
+          <div style="height:6px"></div>
+          <div id="interpretResult" class="notice">Names, formulas, number words, and common reaction verbs are accepted.</div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="viewport-wrap">
+      <canvas id="view" tabindex="0"></canvas>
+      <div class="viewport-label">THREE-DIMENSIONAL VESSEL VIEW</div>
+      <div class="viewport-help">Drag to rotate. Hold the right mouse button to move sideways. Use the mouse wheel to zoom. Use the W, A, S, and D keys to move. Double-click an object for detailed inspection.</div>
+    </main>
+
+    <aside class="panel right">
+      <div class="section">
+        <div class="section-title">VESSEL STATE</div>
+        <div class="section-body">
+          <table class="readout">
+            <tr><td>Temperature</td><td id="temperatureReadout">298 kelvin</td></tr>
+            <tr><td>Pressure</td><td id="pressureReadout">1.00 atmospheres</td></tr>
+            <tr><td>Volume</td><td id="volumeReadout">25.0 liters</td></tr>
+            <tr><td>Acidity measure</td><td id="acidityReadout">7.00</td></tr>
+            <tr><td>Reaction state</td><td id="reactionState">Idle</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">CURRENT INVENTORY</div>
+        <div class="section-body" style="max-height:185px;overflow:auto">
+          <table class="inventory">
+            <thead><tr><th>Substance</th><th>Formula</th><th>Moles</th></tr></thead>
+            <tbody id="inventoryBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="tabs">
+          <button class="tab active" data-tab="reactionsPage">REACTIONS</button>
+          <button class="tab" data-tab="selectionPage">SELECTION</button>
+          <button class="tab" data-tab="dataPage">DATA</button>
+        </div>
+
+        <div id="reactionsPage" class="tab-page active">
+          <div class="section-body">
+            <div id="reactionList" class="reaction-list"></div>
+          </div>
+        </div>
+
+        <div id="selectionPage" class="tab-page">
+          <div class="section-body">
+            <table class="readout">
+              <tr><td>Object type</td><td id="selectedType">None</td></tr>
+              <tr><td>Name</td><td id="selectedName">None</td></tr>
+              <tr><td>Formula or identity</td><td id="selectedFormula">None</td></tr>
+              <tr><td>Atom count</td><td id="selectedAtoms">0</td></tr>
+              <tr><td>Bond count</td><td id="selectedBonds">0</td></tr>
+            </table>
+            <div style="height:6px"></div>
+            <button id="inspectButton" style="width:100%">Open Detailed Inspection</button>
+          </div>
+        </div>
+
+        <div id="dataPage" class="tab-page">
+          <div class="section-body">
+            <div class="notice">
+              The engine uses stoichiometric coefficients, limiting-reagent calculations, flexible name matching, reaction conditions, temperature-dependent rates, and reusable molecular definitions. It is not limited to one exact text pattern.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">EXPERIMENT LOG</div>
+        <div class="section-body">
+          <div id="log" class="log"></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="statusbar">
+    <span id="statusText">Ready</span>
+    <span>Virtual educational environment. Do not use as a laboratory safety reference.</span>
+  </div>
+</div>
+
+<div id="detailModal" class="modal">
+  <div class="modal-window">
+    <div class="modal-title">
+      <strong>DETAILED OBJECT INSPECTION</strong>
+      <button id="closeDetail">Close</button>
+    </div>
+    <div class="modal-body">
+      <canvas id="detailView"></canvas>
+      <div id="detailText" class="detail-text"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+const elementData = {
+  H:{name:"Hydrogen", color:"#f5f5f5", radius:0.34, valence:1, mass:1.008},
+  O:{name:"Oxygen", color:"#d94848", radius:0.48, valence:2, mass:15.999},
+  C:{name:"Carbon", color:"#4b4b4b", radius:0.52, valence:4, mass:12.011},
+  N:{name:"Nitrogen", color:"#4c67c8", radius:0.49, valence:3, mass:14.007},
+  Na:{name:"Sodium", color:"#8d62c7", radius:0.62, valence:1, mass:22.990},
+  Cl:{name:"Chlorine", color:"#47a447", radius:0.58, valence:1, mass:35.45},
+  Ca:{name:"Calcium", color:"#8f8f8f", radius:0.64, valence:2, mass:40.078},
+  Ag:{name:"Silver", color:"#c9c9cf", radius:0.58, valence:1, mass:107.868},
+  Fe:{name:"Iron", color:"#9b5c3c", radius:0.58, valence:2, mass:55.845},
+  Cu:{name:"Copper", color:"#bf6f3b", radius:0.57, valence:2, mass:63.546},
+  S:{name:"Sulfur", color:"#d1b622", radius:0.54, valence:2, mass:32.06},
+  P:{name:"Phosphorus", color:"#d17a25", radius:0.55, valence:3, mass:30.974},
+  Zn:{name:"Zinc", color:"#8da0a9", radius:0.57, valence:2, mass:65.38}
+};
+
+function atom(element,x,y,z){ return {element,x,y,z}; }
+function bond(a,b,order=1){ return {a,b,order}; }
+
+const substanceData = {
+  H2:{
+    name:"Hydrogen", formula:"H2", phase:"gas",
+    aliases:["hydrogen","hydrogen gas","hydrogen molecule","hydrogen molecules"],
+    atoms:[atom("H",-0.45,0,0),atom("H",0.45,0,0)], bonds:[bond(0,1)]
+  },
+  O2:{
+    name:"Oxygen", formula:"O2", phase:"gas",
+    aliases:["oxygen","oxygen gas","oxygen molecule","oxygen molecules"],
+    atoms:[atom("O",-0.52,0,0),atom("O",0.52,0,0)], bonds:[bond(0,1,2)]
+  },
+  H2O:{
+    name:"Water", formula:"H2O", phase:"liquid",
+    aliases:["water","water molecule","water molecules"],
+    atoms:[atom("O",0,0,0),atom("H",-0.62,0.48,0),atom("H",0.62,0.48,0)], bonds:[bond(0,1),bond(0,2)]
+  },
+  CH4:{
+    name:"Methane", formula:"CH4", phase:"gas",
+    aliases:["methane","methane gas"],
+    atoms:[atom("C",0,0,0),atom("H",0.72,0.72,0.72),atom("H",-0.72,-0.72,0.72),atom("H",-0.72,0.72,-0.72),atom("H",0.72,-0.72,-0.72)],
+    bonds:[bond(0,1),bond(0,2),bond(0,3),bond(0,4)]
+  },
+  CO2:{
+    name:"Carbon dioxide", formula:"CO2", phase:"gas",
+    aliases:["carbon dioxide","carbon dioxide gas"],
+    atoms:[atom("O",-0.92,0,0),atom("C",0,0,0),atom("O",0.92,0,0)], bonds:[bond(0,1,2),bond(1,2,2)]
+  },
+  NaCl:{
+    name:"Sodium chloride", formula:"NaCl", phase:"solid",
+    aliases:["sodium chloride","salt","table salt"],
+    atoms:[atom("Na",-0.55,0,0),atom("Cl",0.55,0,0)], bonds:[bond(0,1)]
+  },
+  HCl:{
+    name:"Hydrochloric acid", formula:"HCl", phase:"aqueous",
+    aliases:["hydrochloric acid","hydrogen chloride"],
+    atoms:[atom("H",-0.42,0,0),atom("Cl",0.42,0,0)], bonds:[bond(0,1)]
+  },
+  NaOH:{
+    name:"Sodium hydroxide", formula:"NaOH", phase:"aqueous",
+    aliases:["sodium hydroxide","caustic soda"],
+    atoms:[atom("Na",-0.85,0,0),atom("O",0,0,0),atom("H",0.68,0.26,0)], bonds:[bond(0,1),bond(1,2)]
+  },
+  C6H12O6:{
+    name:"Glucose", formula:"C6H12O6", phase:"aqueous",
+    aliases:["glucose","sugar molecule","glucose molecule"],
+    atoms:[
+      atom("C",-1.5,0,0),atom("C",-0.9,0.6,0),atom("C",-0.2,0.2,0),atom("C",0.5,0.75,0),atom("C",1.2,0.2,0),atom("C",1.7,0.8,0),
+      atom("O",-1.5,-0.9,0),atom("O",-0.9,1.5,0),atom("O",-0.2,-0.7,0),atom("O",0.5,1.65,0),atom("O",1.2,-0.7,0),atom("O",1.7,1.7,0),
+      atom("H",-2.1,0.2,0),atom("H",-1.1,-0.7,0),atom("H",-0.4,1.0,0),atom("H",0.2,-0.45,0),atom("H",0.8,0.1,0),atom("H",1.8,-0.25,0),
+      atom("H",-1.9,-1.15,0),atom("H",-0.55,1.9,0),atom("H",0.15,-1.05,0),atom("H",0.85,1.95,0),atom("H",1.55,-1.0,0),atom("H",2.1,2.0,0)
+    ],
+    bonds:[
+      bond(0,1),bond(1,2),bond(2,3),bond(3,4),bond(4,5),
+      bond(0,6),bond(1,7),bond(2,8),bond(3,9),bond(4,10),bond(5,11),
+      bond(0,12),bond(0,13),bond(1,14),bond(2,15),bond(3,16),bond(4,17),
+      bond(6,18),bond(7,19),bond(8,20),bond(9,21),bond(10,22),bond(11,23)
+    ]
+  },
+  C2H5OH:{
+    name:"Ethanol", formula:"C2H5OH", phase:"liquid",
+    aliases:["ethanol","ethyl alcohol"],
+    atoms:[atom("C",-0.75,0,0),atom("C",0.1,0,0),atom("O",0.95,0,0),atom("H",1.45,0.35,0),
+      atom("H",-1.05,0.7,0),atom("H",-1.05,-0.7,0),atom("H",-0.75,0,0.8),atom("H",0.1,0.75,0),atom("H",0.1,-0.75,0)],
+    bonds:[bond(0,1),bond(1,2),bond(2,3),bond(0,4),bond(0,5),bond(0,6),bond(1,7),bond(1,8)]
+  },
+  C3H6O3:{
+    name:"Lactic acid", formula:"C3H6O3", phase:"aqueous",
+    aliases:["lactic acid","lactate product"],
+    atoms:[atom("C",-0.9,0,0),atom("C",0,0,0),atom("C",0.9,0,0),atom("O",-1.45,0.55,0),atom("O",0,0.85,0),atom("O",1.45,0.45,0),
+      atom("H",-1.35,-0.65,0),atom("H",-0.75,-0.65,0),atom("H",0,-0.75,0),atom("H",0.2,1.25,0),atom("H",1.15,-0.65,0),atom("H",1.85,0.2,0)],
+    bonds:[bond(0,1),bond(1,2),bond(0,3),bond(1,4),bond(2,5,2),bond(0,6),bond(0,7),bond(1,8),bond(4,9),bond(2,10),bond(3,11)]
+  },
+  H2O2:{
+    name:"Hydrogen peroxide", formula:"H2O2", phase:"aqueous",
+    aliases:["hydrogen peroxide","peroxide"],
+    atoms:[atom("H",-1.0,0.35,0),atom("O",-0.42,0,0),atom("O",0.42,0,0),atom("H",1.0,-0.35,0)], bonds:[bond(0,1),bond(1,2),bond(2,3)]
+  },
+  CaCO3:{
+    name:"Calcium carbonate", formula:"CaCO3", phase:"solid",
+    aliases:["calcium carbonate","limestone"],
+    atoms:[atom("Ca",-1.0,0,0),atom("C",0,0,0),atom("O",0.9,0,0),atom("O",-0.2,0.85,0),atom("O",-0.2,-0.85,0)],
+    bonds:[bond(0,1),bond(1,2,2),bond(1,3),bond(1,4)]
+  },
+  CaO:{
+    name:"Calcium oxide", formula:"CaO", phase:"solid",
+    aliases:["calcium oxide","quicklime"],
+    atoms:[atom("Ca",-0.5,0,0),atom("O",0.5,0,0)], bonds:[bond(0,1)]
+  },
+  AgNO3:{
+    name:"Silver nitrate", formula:"AgNO3", phase:"aqueous",
+    aliases:["silver nitrate"],
+    atoms:[atom("Ag",-1.1,0,0),atom("N",0,0,0),atom("O",0.85,0,0),atom("O",-0.1,0.85,0),atom("O",-0.1,-0.85,0)],
+    bonds:[bond(0,1),bond(1,2,2),bond(1,3),bond(1,4)]
+  },
+  AgCl:{
+    name:"Silver chloride", formula:"AgCl", phase:"solid",
+    aliases:["silver chloride"],
+    atoms:[atom("Ag",-0.5,0,0),atom("Cl",0.5,0,0)], bonds:[bond(0,1)]
+  },
+  NaNO3:{
+    name:"Sodium nitrate", formula:"NaNO3", phase:"aqueous",
+    aliases:["sodium nitrate"],
+    atoms:[atom("Na",-1.1,0,0),atom("N",0,0,0),atom("O",0.85,0,0),atom("O",-0.1,0.85,0),atom("O",-0.1,-0.85,0)],
+    bonds:[bond(0,1),bond(1,2,2),bond(1,3),bond(1,4)]
+  },
+  Fe:{
+    name:"Iron", formula:"Fe", phase:"solid", aliases:["iron","iron metal"], atoms:[atom("Fe",0,0,0)], bonds:[]
+  },
+  CuSO4:{
+    name:"Copper sulfate", formula:"CuSO4", phase:"aqueous",
+    aliases:["copper sulfate","copper sulphate"],
+    atoms:[atom("Cu",-1.2,0,0),atom("S",0,0,0),atom("O",0.95,0,0),atom("O",-0.05,0.95,0),atom("O",-0.05,-0.95,0),atom("O",0,0,0.95)],
+    bonds:[bond(0,1),bond(1,2,2),bond(1,3),bond(1,4),bond(1,5)]
+  },
+  FeSO4:{
+    name:"Iron sulfate", formula:"FeSO4", phase:"aqueous",
+    aliases:["iron sulfate","iron sulphate"],
+    atoms:[atom("Fe",-1.2,0,0),atom("S",0,0,0),atom("O",0.95,0,0),atom("O",-0.05,0.95,0),atom("O",-0.05,-0.95,0),atom("O",0,0,0.95)],
+    bonds:[bond(0,1),bond(1,2,2),bond(1,3),bond(1,4),bond(1,5)]
+  },
+  Cu:{
+    name:"Copper", formula:"Cu", phase:"solid", aliases:["copper","copper metal"], atoms:[atom("Cu",0,0,0)], bonds:[]
+  },
+  Zn:{
+    name:"Zinc", formula:"Zn", phase:"solid", aliases:["zinc","zinc metal"], atoms:[atom("Zn",0,0,0)], bonds:[]
+  },
+  ZnSO4:{
+    name:"Zinc sulfate", formula:"ZnSO4", phase:"aqueous",
+    aliases:["zinc sulfate","zinc sulphate"],
+    atoms:[atom("Zn",-1.2,0,0),atom("S",0,0,0),atom("O",0.95,0,0),atom("O",-0.05,0.95,0),atom("O",-0.05,-0.95,0),atom("O",0,0,0.95)],
+    bonds:[bond(0,1),bond(1,2,2),bond(1,3),bond(1,4),bond(1,5)]
+  },
+  ATP:{
+    name:"Adenosine triphosphate", formula:"C10H16N5O13P3", phase:"cellular",
+    aliases:["adenosine triphosphate","cell energy molecule"],
+    atoms:[atom("P",-1.3,0,0),atom("P",-0.4,0,0),atom("P",0.5,0,0),atom("O",-1.75,0.55,0),atom("O",-1.75,-0.55,0),atom("O",-0.4,0.7,0),atom("O",0.5,-0.7,0),atom("C",1.4,0,0),atom("N",2.1,0.5,0),atom("C",2.8,0,0)],
+    bonds:[bond(0,1),bond(1,2),bond(0,3),bond(0,4),bond(1,5),bond(2,6),bond(2,7),bond(7,8),bond(8,9)]
+  }
+};
+
+const cellData = {
+  animal:{
+    name:"Animal cell",
+    description:"A membrane-bound cell with a nucleus, mitochondria, endoplasmic reticulum, and internal transport structures.",
+    supports:["Cellular respiration"]
+  },
+  plant:{
+    name:"Plant cell",
+    description:"A cell with a wall, chloroplasts, a nucleus, mitochondria, and a large central vacuole.",
+    supports:["Photosynthesis","Cellular respiration"]
+  },
+  yeast:{
+    name:"Yeast cell",
+    description:"A single-celled fungus capable of oxygen-based respiration and ethanol fermentation.",
+    supports:["Ethanol fermentation","Cellular respiration"]
+  },
+  muscle:{
+    name:"Muscle cell",
+    description:"A specialized animal cell capable of oxygen-based respiration and lactic acid production when oxygen is limited.",
+    supports:["Cellular respiration","Lactic acid formation"]
+  },
+  bacterium:{
+    name:"Bacterial cell",
+    description:"A simple cell without a membrane-bound nucleus. It contains a cell membrane, cytoplasm, ribosomes, and genetic material.",
+    supports:["General metabolism"]
+  }
+};
+
+const deviceData = {
+  zincCopper:{
+    name:"Zinc and copper galvanic cell",
+    description:"A virtual zinc and copper electrochemical device. Zinc is oxidized and copper ions are reduced.",
+    potential:1.10,
+    reaction:"Zn + CuSO4 → ZnSO4 + Cu"
+  },
+  hydrogenOxygen:{
+    name:"Hydrogen and oxygen fuel cell",
+    description:"A virtual fuel cell that combines hydrogen and oxygen to form water while releasing electrical energy.",
+    potential:1.23,
+    reaction:"2 H2 + O2 → 2 H2O"
+  }
+};
+
+const reactions = [
+  {
+    id:"hydrogenCombustion",
+    name:"Hydrogen combustion",
+    reactants:{H2:2,O2:1},
+    products:{H2O:2},
+    condition:{ignition:true},
+    energy:-484,
+    rate:0.85,
+    description:"Hydrogen reacts with oxygen after ignition to form water."
+  },
+  {
+    id:"methaneCombustion",
+    name:"Methane combustion",
+    reactants:{CH4:1,O2:2},
+    products:{CO2:1,H2O:2},
+    condition:{ignition:true},
+    energy:-890,
+    rate:0.60,
+    description:"Methane burns in oxygen to form carbon dioxide and water."
+  },
+  {
+    id:"neutralization",
+    name:"Acid and base neutralization",
+    reactants:{HCl:1,NaOH:1},
+    products:{NaCl:1,H2O:1},
+    condition:{},
+    energy:-57,
+    rate:1.15,
+    description:"Hydrochloric acid and sodium hydroxide form sodium chloride and water."
+  },
+  {
+    id:"peroxideDecomposition",
+    name:"Hydrogen peroxide decomposition",
+    reactants:{H2O2:2},
+    products:{H2O:2,O2:1},
+    condition:{catalyst:true},
+    energy:-196,
+    rate:0.45,
+    description:"A catalyst accelerates the breakdown of hydrogen peroxide into water and oxygen."
+  },
+  {
+    id:"carbonateDecomposition",
+    name:"Calcium carbonate thermal decomposition",
+    reactants:{CaCO3:1},
+    products:{CaO:1,CO2:1},
+    condition:{minimumTemperature:850},
+    energy:178,
+    rate:0.20,
+    description:"Strong heating decomposes calcium carbonate into calcium oxide and carbon dioxide."
+  },
+  {
+    id:"precipitation",
+    name:"Silver chloride precipitation",
+    reactants:{AgNO3:1,NaCl:1},
+    products:{AgCl:1,NaNO3:1},
+    condition:{},
+    energy:-65,
+    rate:0.95,
+    description:"Silver ions and chloride ions form solid silver chloride."
+  },
+  {
+    id:"metalDisplacement",
+    name:"Iron and copper sulfate displacement",
+    reactants:{Fe:1,CuSO4:1},
+    products:{FeSO4:1,Cu:1},
+    condition:{},
+    energy:-153,
+    rate:0.40,
+    description:"Iron replaces copper in copper sulfate solution."
+  },
+  {
+    id:"zincCopperCell",
+    name:"Zinc and copper cell reaction",
+    reactants:{Zn:1,CuSO4:1},
+    products:{ZnSO4:1,Cu:1},
+    condition:{device:"zincCopper"},
+    energy:-212,
+    rate:0.35,
+    description:"The zinc and copper device converts chemical energy into electrical energy."
+  },
+  {
+    id:"cellularRespiration",
+    name:"Cellular respiration",
+    reactants:{C6H12O6:1,O2:6},
+    products:{CO2:6,H2O:6,ATP:30},
+    condition:{cell:["animal","plant","yeast","muscle"]},
+    energy:-2870,
+    rate:0.16,
+    description:"A living cell uses glucose and oxygen to form carbon dioxide, water, and adenosine triphosphate."
+  },
+  {
+    id:"ethanolFermentation",
+    name:"Ethanol fermentation",
+    reactants:{C6H12O6:1},
+    products:{C2H5OH:2,CO2:2,ATP:2},
+    condition:{cell:["yeast"],oxygenMaximum:0.20},
+    energy:-118,
+    rate:0.18,
+    description:"A yeast cell converts glucose into ethanol, carbon dioxide, and a small amount of adenosine triphosphate."
+  },
+  {
+    id:"lacticFermentation",
+    name:"Lactic acid formation",
+    reactants:{C6H12O6:1},
+    products:{C3H6O3:2,ATP:2},
+    condition:{cell:["muscle"],oxygenMaximum:0.20},
+    energy:-120,
+    rate:0.18,
+    description:"A muscle cell converts glucose into lactic acid when oxygen is limited."
+  },
+  {
+    id:"photosynthesis",
+    name:"Photosynthesis",
+    reactants:{CO2:6,H2O:6},
+    products:{C6H12O6:1,O2:6},
+    condition:{cell:["plant"],light:true},
+    energy:2800,
+    rate:0.12,
+    description:"A plant cell uses visible light to store energy in glucose and release oxygen."
+  }
+];
+
+const state = {
+  inventory:new Map(),
+  molecules:[],
+  cells:[],
+  devices:[],
+  selected:null,
+  selectedReaction:reactions[0],
+  temperature:298,
+  volume:25,
+  acidity:7,
+  light:false,
+  catalyst:false,
+  ignition:false,
+  paused:false,
+  mixed:false,
+  reactionJob:null,
+  time:0
+};
+
+const camera = {yaw:0.35,pitch:-0.28,distance:18,panX:0,panY:0,panZ:0};
+const detailCamera = {yaw:0.35,pitch:-0.25,distance:7,panX:0,panY:0,panZ:0};
+
+const view = document.getElementById("view");
+const ctx = view.getContext("2d");
+const detailView = document.getElementById("detailView");
+const detailCtx = detailView.getContext("2d");
+
+function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
+function randomRange(a,b){ return a+Math.random()*(b-a); }
+function formatNumber(v,d=2){ return Number(v).toFixed(d); }
+
+function log(message){
+  const area=document.getElementById("log");
+  const stamp=new Date().toLocaleTimeString("en-GB",{hour12:false});
+  area.textContent += "["+stamp+"] "+message+"\n";
+  area.scrollTop=area.scrollHeight;
+}
+
+function setStatus(message){ document.getElementById("statusText").textContent=message; }
+
+function populateMenus(){
+  const substanceSelect=document.getElementById("substanceSelect");
+  Object.values(substanceData)
+    .filter(s=>s.formula!=="C10H16N5O13P3")
+    .sort((a,b)=>a.name.localeCompare(b.name))
+    .forEach(s=>{
+      const option=document.createElement("option");
+      option.value=s.formula;
+      option.textContent=s.name+" ("+s.formula+")";
+      substanceSelect.appendChild(option);
+    });
+
+  const cellSelect=document.getElementById("cellSelect");
+  Object.entries(cellData).forEach(([key,c])=>{
+    const option=document.createElement("option");
+    option.value=key;
+    option.textContent=c.name;
+    cellSelect.appendChild(option);
+  });
+
+  const deviceSelect=document.getElementById("deviceSelect");
+  Object.entries(deviceData).forEach(([key,d])=>{
+    const option=document.createElement("option");
+    option.value=key;
+    option.textContent=d.name;
+    deviceSelect.appendChild(option);
+  });
+}
+
+function buildReactionList(){
+  const list=document.getElementById("reactionList");
+  list.innerHTML="";
+  reactions.forEach(r=>{
+    const row=document.createElement("div");
+    row.className="reaction-row"+(state.selectedReaction===r?" selected":"");
+    row.innerHTML="<strong>"+r.name+"</strong><br>"+formatEquation(r);
+    row.addEventListener("click",()=>{
+      state.selectedReaction=r;
+      buildReactionList();
+      setStatus("Selected reaction: "+r.name);
+    });
+    list.appendChild(row);
+  });
+}
+
+function formatEquation(reaction){
+  const side=(obj)=>Object.entries(obj).map(([f,c])=>(c===1?"":c+" ")+displayFormula(f)).join(" + ");
+  return side(reaction.reactants)+" → "+side(reaction.products);
+}
+
+function displayFormula(key){
+  if(key==="ATP") return "C10H16N5O13P3";
+  return key;
+}
+
+function addInventory(formula,moles){
+  const current=state.inventory.get(formula)||0;
+  state.inventory.set(formula,Math.max(0,current+moles));
+  if(state.inventory.get(formula)<0.0001) state.inventory.delete(formula);
+}
+
+function addSubstance(formula,moles,quiet=false){
+  if(!substanceData[formula] || !(moles>0)) return;
+  addInventory(formula,moles);
+  const count=clamp(Math.ceil(moles*5),1,25);
+  for(let i=0;i<count;i++) state.molecules.push(createMoleculeObject(formula));
+  if(!quiet) log("Added "+formatNumber(moles)+" moles of "+substanceData[formula].name+".");
+  updateAllReadouts();
+}
+
+function removeSubstance(formula,moles){
+  const current=state.inventory.get(formula)||0;
+  if(current<=0){ log("No "+substanceData[formula].name+" is present."); return; }
+  const removed=Math.min(current,moles);
+  addInventory(formula,-removed);
+  reconcileVisuals();
+  log("Removed "+formatNumber(removed)+" moles of "+substanceData[formula].name+".");
+  updateAllReadouts();
+}
+
+function createMoleculeObject(formula){
+  return {
+    kind:"molecule",
+    formula,
+    name:substanceData[formula].name,
+    x:randomRange(-5.3,5.3),
+    y:randomRange(-3.7,3.7),
+    z:randomRange(-4.3,4.3),
+    vx:randomRange(-0.35,0.35),
+    vy:randomRange(-0.35,0.35),
+    vz:randomRange(-0.35,0.35),
+    rx:randomRange(0,Math.PI*2),
+    ry:randomRange(0,Math.PI*2),
+    rz:randomRange(0,Math.PI*2),
+    scale:randomRange(0.46,0.68)
+  };
+}
+
+function createCellObject(type){
+  return {
+    kind:"cell",
+    cellType:type,
+    name:cellData[type].name,
+    x:randomRange(-3.8,3.8),
+    y:randomRange(-2.8,2.8),
+    z:randomRange(-3.2,3.2),
+    vx:randomRange(-0.08,0.08),
+    vy:randomRange(-0.08,0.08),
+    vz:randomRange(-0.08,0.08),
+    rx:0,ry:0,rz:0,
+    scale:randomRange(0.8,1.15)
+  };
+}
+
+function createDeviceObject(type){
+  return {
+    kind:"device",
+    deviceType:type,
+    name:deviceData[type].name,
+    x:0,y:-1.2,z:0,
+    vx:0,vy:0,vz:0,
+    rx:0,ry:0,rz:0,
+    scale:1
+  };
+}
+
+function updateInventoryTable(){
+  const body=document.getElementById("inventoryBody");
+  body.innerHTML="";
+  const entries=[...state.inventory.entries()].filter(([,m])=>m>0.0001).sort((a,b)=>substanceData[a[0]].name.localeCompare(substanceData[b[0]].name));
+  if(entries.length===0){
+    const row=document.createElement("tr");
+    row.innerHTML="<td colspan='3'>The vessel is empty.</td>";
+    body.appendChild(row);
+    return;
+  }
+  entries.forEach(([formula,moles])=>{
+    const row=document.createElement("tr");
+    row.innerHTML="<td>"+substanceData[formula].name+"</td><td>"+displayFormula(formula)+"</td><td>"+formatNumber(moles,3)+"</td>";
+    body.appendChild(row);
+  });
+}
+
+function calculatePressure(){
+  const gasMoles=[...state.inventory.entries()].reduce((sum,[f,m])=>sum+(substanceData[f].phase==="gas"?m:0),0);
+  if(gasMoles<=0) return 1;
+  return Math.max(0.05,gasMoles*0.082057*state.temperature/state.volume);
+}
+
+function calculateAcidity(){
+  const acid=state.inventory.get("HCl")||0;
+  const base=state.inventory.get("NaOH")||0;
+  const liters=state.volume;
+  const difference=acid-base;
+  if(Math.abs(difference)<0.000001) return 7;
+  if(difference>0){
+    const concentration=difference/liters;
+    return clamp(-Math.log10(Math.max(concentration,1e-14)),0,14);
+  }
+  const hydroxide=(base-acid)/liters;
+  return clamp(14+Math.log10(Math.max(hydroxide,1e-14)),0,14);
+}
+
+function updateAllReadouts(){
+  state.acidity=calculateAcidity();
+  document.getElementById("temperatureReadout").textContent=formatNumber(state.temperature,0)+" kelvin";
+  document.getElementById("pressureReadout").textContent=formatNumber(calculatePressure(),2)+" atmospheres";
+  document.getElementById("volumeReadout").textContent=formatNumber(state.volume,1)+" liters";
+  document.getElementById("acidityReadout").textContent=formatNumber(state.acidity,2);
+  document.getElementById("reactionState").textContent=state.reactionJob ? "Running: "+state.reactionJob.reaction.name : "Idle";
+  updateInventoryTable();
+  updateSelectionPanel();
+}
+
+function reactionConditionStatus(reaction){
+  const c=reaction.condition||{};
+  if(c.ignition && !state.ignition) return {ok:false,reason:"Ignition is required."};
+  if(c.catalyst && !state.catalyst) return {ok:false,reason:"A catalyst is required."};
+  if(c.light && !state.light) return {ok:false,reason:"Visible light is required."};
+  if(c.minimumTemperature && state.temperature<c.minimumTemperature) return {ok:false,reason:"Temperature must reach "+c.minimumTemperature+" kelvin."};
+  if(c.oxygenMaximum!==undefined && (state.inventory.get("O2")||0)>c.oxygenMaximum) return {ok:false,reason:"Oxygen must be limited to "+c.oxygenMaximum+" moles or less."};
+  if(c.cell){
+    const present=state.cells.some(cell=>c.cell.includes(cell.cellType));
+    if(!present) return {ok:false,reason:"A compatible biological cell is required."};
+  }
+  if(c.device){
+    const present=state.devices.some(device=>device.deviceType===c.device);
+    if(!present) return {ok:false,reason:"The matching electrochemical device is required."};
+  }
+  return {ok:true,reason:"Conditions are satisfied."};
+}
+
+function reactionExtent(reaction){
+  let extent=Infinity;
+  for(const [formula,coefficient] of Object.entries(reaction.reactants)){
+    extent=Math.min(extent,(state.inventory.get(formula)||0)/coefficient);
+  }
+  return isFinite(extent)?Math.max(0,extent):0;
+}
+
+function startSelectedReaction(reaction=state.selectedReaction){
+  if(state.reactionJob){ log("A reaction is already running."); return; }
+  const condition=reactionConditionStatus(reaction);
+  if(!condition.ok){ log(reaction.name+" cannot start. "+condition.reason); setStatus(condition.reason); return; }
+  const extent=reactionExtent(reaction);
+  if(extent<=0.0001){ log(reaction.name+" cannot start because one or more reactants are missing."); return; }
+  state.reactionJob={
+    reaction,
+    remaining:extent,
+    original:extent,
+    completed:0
+  };
+  log("Started "+reaction.name+". Maximum reaction extent: "+formatNumber(extent,3)+" moles.");
+  setStatus("Reaction in progress");
+  updateAllReadouts();
+}
+
+function updateReaction(delta){
+  if(!state.reactionJob || state.paused) return;
+  const job=state.reactionJob;
+  const reaction=job.reaction;
+  const temperatureFactor=Math.max(0.15,Math.pow(state.temperature/298,1.35));
+  const catalystFactor=state.catalyst?1.7:1;
+  let step=reaction.rate*temperatureFactor*catalystFactor*delta*0.18;
+  step=Math.min(step,job.remaining);
+
+  for(const [formula,coefficient] of Object.entries(reaction.reactants)) addInventory(formula,-coefficient*step);
+  for(const [formula,coefficient] of Object.entries(reaction.products)) addInventory(formula,coefficient*step);
+
+  job.remaining-=step;
+  job.completed+=step;
+  state.temperature=clamp(state.temperature+(-reaction.energy)*step*0.0025,80,1800);
+
+  if(job.remaining<=0.00005){
+    log("Completed "+reaction.name+". Reaction extent: "+formatNumber(job.original,3)+" moles.");
+    if(reaction.condition.device){
+      log("Virtual electrical potential: "+formatNumber(deviceData[reaction.condition.device].potential,2)+" volts.");
+    }
+    state.reactionJob=null;
+    state.ignition=false;
+    document.getElementById("igniteButton").textContent="Apply Ignition";
+    reconcileVisuals();
+    setStatus("Reaction completed");
+  }
+}
+
+function reconcileVisuals(){
+  const desired={};
+  for(const [formula,moles] of state.inventory.entries()) desired[formula]=clamp(Math.ceil(moles*5),0,25);
+  const grouped={};
+  state.molecules.forEach(m=>{ (grouped[m.formula]||(grouped[m.formula]=[])).push(m); });
+
+  Object.keys(grouped).forEach(formula=>{
+    const keep=desired[formula]||0;
+    grouped[formula].slice(keep).forEach(obj=>{
+      const index=state.molecules.indexOf(obj);
+      if(index>=0) state.molecules.splice(index,1);
+      if(state.selected===obj) state.selected=null;
+    });
+  });
+
+  Object.keys(desired).forEach(formula=>{
+    const current=(grouped[formula]||[]).length;
+    for(let i=current;i<desired[formula];i++) state.molecules.push(createMoleculeObject(formula));
+  });
+  updateAllReadouts();
+}
+
+function updateMotion(delta){
+  if(state.paused) return;
+  const speedFactor=Math.sqrt(state.temperature/298);
+  [...state.molecules,...state.cells].forEach(obj=>{
+    obj.x += obj.vx*delta*speedFactor;
+    obj.y += obj.vy*delta*speedFactor;
+    obj.z += obj.vz*delta*speedFactor;
+    obj.rx += 0.14*delta;
+    obj.ry += 0.11*delta;
+    if(Math.abs(obj.x)>5.7){ obj.x=clamp(obj.x,-5.7,5.7); obj.vx*=-1; }
+    if(Math.abs(obj.y)>4.0){ obj.y=clamp(obj.y,-4.0,4.0); obj.vy*=-1; }
+    if(Math.abs(obj.z)>4.7){ obj.z=clamp(obj.z,-4.7,4.7); obj.vz*=-1; }
+  });
+}
+
+function rotatePoint(p,rx,ry,rz){
+  let x=p.x,y=p.y,z=p.z;
+  let c=Math.cos(rx),s=Math.sin(rx);
+  [y,z]=[y*c-z*s,y*s+z*c];
+  c=Math.cos(ry);s=Math.sin(ry);
+  [x,z]=[x*c+z*s,-x*s+z*c];
+  c=Math.cos(rz);s=Math.sin(rz);
+  [x,y]=[x*c-y*s,x*s+y*c];
+  return {x,y,z};
+}
+
+function cameraTransform(p,cam){
+  let x=p.x-cam.panX;
+  let y=p.y-cam.panY;
+  let z=p.z-cam.panZ;
+
+  let c=Math.cos(cam.yaw),s=Math.sin(cam.yaw);
+  [x,z]=[x*c-z*s,x*s+z*c];
+
+  c=Math.cos(cam.pitch);s=Math.sin(cam.pitch);
+  [y,z]=[y*c-z*s,y*s+z*c];
+
+  z += cam.distance;
+  return {x,y,z};
+}
+
+function project(p,canvas,cam){
+  const q=cameraTransform(p,cam);
+  const focal=Math.min(canvas.width,canvas.height)*0.88;
+  if(q.z<=0.2) return null;
+  return {
+    x:canvas.width/2 + q.x*focal/q.z,
+    y:canvas.height/2 - q.y*focal/q.z,
+    depth:q.z,
+    scale:focal/q.z
+  };
+}
+
+function resizeCanvas(canvas){
+  const rect=canvas.getBoundingClientRect();
+  const ratio=Math.min(window.devicePixelRatio||1,2);
+  const w=Math.max(1,Math.round(rect.width*ratio));
+  const h=Math.max(1,Math.round(rect.height*ratio));
+  if(canvas.width!==w || canvas.height!==h){
+    canvas.width=w;
+    canvas.height=h;
+  }
+}
+
+function drawGrid(context,canvas,cam){
+  context.save();
+  context.lineWidth=1;
+  for(let i=-6;i<=6;i++){
+    drawWorldLine(context,canvas,cam,{x:i,y:-4.25,z:-5},{x:i,y:-4.25,z:5},"#dddddd");
+    drawWorldLine(context,canvas,cam,{x:-6,y:-4.25,z:i},{x:6,y:-4.25,z:i},"#dddddd");
+  }
+  context.restore();
+}
+
+function drawWorldLine(context,canvas,cam,a,b,color,width=1){
+  const pa=project(a,canvas,cam),pb=project(b,canvas,cam);
+  if(!pa||!pb)return;
+  context.strokeStyle=color;
+  context.lineWidth=width;
+  context.beginPath();
+  context.moveTo(pa.x,pa.y);
+  context.lineTo(pb.x,pb.y);
+  context.stroke();
+}
+
+function drawVessel(context,canvas,cam){
+  const corners=[];
+  for(const x of [-6,6])for(const y of [-4.3,4.3])for(const z of [-5,5])corners.push({x,y,z});
+  const edges=[
+    [0,1],[0,2],[0,4],[1,3],[1,5],[2,3],[2,6],[3,7],
+    [4,5],[4,6],[5,7],[6,7]
+  ];
+  context.save();
+  context.setLineDash([7,5]);
+  edges.forEach(([a,b])=>drawWorldLine(context,canvas,cam,corners[a],corners[b],"#9a9a9a",1));
+  context.restore();
+}
+
+function worldAtomPositions(obj){
+  const model=substanceData[obj.formula];
+  return model.atoms.map(a=>{
+    const r=rotatePoint({x:a.x*obj.scale,y:a.y*obj.scale,z:a.z*obj.scale},obj.rx,obj.ry,obj.rz);
+    return {x:r.x+obj.x,y:r.y+obj.y,z:r.z+obj.z,element:a.element};
+  });
+}
+
+function drawMolecule(context,canvas,cam,obj,selectionMode=false){
+  const model=substanceData[obj.formula];
+  const worldAtoms=worldAtomPositions(obj);
+  const projected=worldAtoms.map(p=>project(p,canvas,cam));
+  const bondsToDraw=[];
+  model.bonds.forEach(b=>{
+    const pa=projected[b.a],pb=projected[b.b];
+    if(pa&&pb) bondsToDraw.push({b,pa,pb,depth:(pa.depth+pb.depth)/2});
+  });
+  bondsToDraw.sort((a,b)=>b.depth-a.depth);
+  bondsToDraw.forEach(item=>{
+    const {b,pa,pb}=item;
+    context.strokeStyle="#3a3a3a";
+    context.lineWidth=Math.max(1,Math.min(6,(pa.scale+pb.scale)*0.045));
+    const dx=pb.x-pa.x,dy=pb.y-pa.y;
+    const len=Math.hypot(dx,dy)||1;
+    const nx=-dy/len,ny=dx/len;
+    const spacing=3;
+    for(let orderIndex=0;orderIndex<b.order;orderIndex++){
+      const offset=(orderIndex-(b.order-1)/2)*spacing;
+      context.beginPath();
+      context.moveTo(pa.x+nx*offset,pa.y+ny*offset);
+      context.lineTo(pb.x+nx*offset,pb.y+ny*offset);
+      context.stroke();
+    }
+  });
+
+  const atomsToDraw=projected.map((p,i)=>({p,i,world:worldAtoms[i]})).filter(x=>x.p).sort((a,b)=>b.p.depth-a.p.depth);
+  atomsToDraw.forEach(item=>{
+    const data=elementData[item.world.element];
+    const r=clamp(data.radius*item.p.scale*obj.scale*0.95,3,34);
+    const gradient=context.createRadialGradient(item.p.x-r*.35,item.p.y-r*.35,r*.15,item.p.x,item.p.y,r);
+    gradient.addColorStop(0,"#ffffff");
+    gradient.addColorStop(.25,data.color);
+    gradient.addColorStop(1,"#333333");
+    context.fillStyle=gradient;
+    context.strokeStyle="#111";
+    context.lineWidth=1;
+    context.beginPath();
+    context.arc(item.p.x,item.p.y,r,0,Math.PI*2);
+    context.fill();
+    context.stroke();
+    if(r>11){
+      context.fillStyle=(item.world.element==="C"||item.world.element==="N")?"#fff":"#000";
+      context.font=Math.max(9,Math.round(r*.72))+"px Courier New";
+      context.textAlign="center";
+      context.textBaseline="middle";
+      context.fillText(item.world.element,item.p.x,item.p.y);
+    }
+  });
+
+  const center=project({x:obj.x,y:obj.y,z:obj.z},canvas,cam);
+  if(center){
+    obj._screen={x:center.x,y:center.y,r:Math.max(13,model.atoms.length*1.7*obj.scale+8),depth:center.depth};
+    if(obj===state.selected && !selectionMode){
+      context.strokeStyle="#000";
+      context.lineWidth=2;
+      context.setLineDash([4,3]);
+      context.beginPath();
+      context.arc(center.x,center.y,obj._screen.r+8,0,Math.PI*2);
+      context.stroke();
+      context.setLineDash([]);
+    }
+  }
+}
+
+function drawCell(context,canvas,cam,obj,selectionMode=false){
+  const p=project({x:obj.x,y:obj.y,z:obj.z},canvas,cam);
+  if(!p)return;
+  const radius=clamp(1.18*p.scale*obj.scale,20,78);
+  const type=obj.cellType;
+
+  context.save();
+  context.translate(p.x,p.y);
+  context.rotate(Math.sin(state.time*.3+obj.x)*0.08);
+  context.globalAlpha=.82;
+  context.fillStyle=type==="plant"?"#dff0d8":"#edf2f7";
+  context.strokeStyle="#111";
+  context.lineWidth=2;
+  if(type==="plant"){
+    context.fillRect(-radius,-radius*.72,radius*2,radius*1.44);
+    context.strokeRect(-radius,-radius*.72,radius*2,radius*1.44);
+  }else{
+    context.beginPath();
+    context.ellipse(0,0,radius,radius*.75,0,0,Math.PI*2);
+    context.fill();
+    context.stroke();
+  }
+
+  context.globalAlpha=1;
+  context.fillStyle="#b3b7d9";
+  context.strokeStyle="#222";
+  context.beginPath();
+  context.arc(-radius*.18,-radius*.05,radius*.25,0,Math.PI*2);
+  context.fill();
+  context.stroke();
+
+  const organelles=type==="plant"?7:5;
+  for(let i=0;i<organelles;i++){
+    const angle=(i/organelles)*Math.PI*2+state.time*.04;
+    const ox=Math.cos(angle)*radius*.52;
+    const oy=Math.sin(angle)*radius*.35;
+    context.fillStyle=type==="plant"?"#8fc27d":"#d69d70";
+    context.beginPath();
+    context.ellipse(ox,oy,radius*.13,radius*.07,angle,0,Math.PI*2);
+    context.fill();
+    context.stroke();
+  }
+  if(type==="plant"){
+    context.fillStyle="rgba(210,235,255,.8)";
+    context.beginPath();
+    context.ellipse(radius*.2,0,radius*.35,radius*.24,0,0,Math.PI*2);
+    context.fill();
+    context.stroke();
+  }
+  context.restore();
+
+  obj._screen={x:p.x,y:p.y,r:radius,depth:p.depth};
+  if(obj===state.selected && !selectionMode){
+    context.strokeStyle="#000";
+    context.lineWidth=2;
+    context.setLineDash([4,3]);
+    context.beginPath();
+    context.arc(p.x,p.y,radius+8,0,Math.PI*2);
+    context.stroke();
+    context.setLineDash([]);
+  }
+}
+
+function drawDevice(context,canvas,cam,obj,selectionMode=false){
+  const center=project({x:obj.x,y:obj.y,z:obj.z},canvas,cam);
+  if(!center)return;
+  const scale=clamp(center.scale*.9,18,55);
+  const left=project({x:obj.x-1.8,y:obj.y,z:obj.z},canvas,cam);
+  const right=project({x:obj.x+1.8,y:obj.y,z:obj.z},canvas,cam);
+  if(!left||!right)return;
+
+  context.save();
+  context.lineWidth=2;
+  context.strokeStyle="#111";
+  context.fillStyle="rgba(230,240,250,.75)";
+  context.fillRect(left.x-scale*.55,left.y-scale*.5,(right.x-left.x)+scale*1.1,scale);
+  context.strokeRect(left.x-scale*.55,left.y-scale*.5,(right.x-left.x)+scale*1.1,scale);
+
+  context.fillStyle="#8da0a9";
+  context.fillRect(left.x-scale*.18,left.y-scale*.75,scale*.36,scale*1.2);
+  context.strokeRect(left.x-scale*.18,left.y-scale*.75,scale*.36,scale*1.2);
+
+  context.fillStyle="#bf6f3b";
+  context.fillRect(right.x-scale*.18,right.y-scale*.75,scale*.36,scale*1.2);
+  context.strokeRect(right.x-scale*.18,right.y-scale*.75,scale*.36,scale*1.2);
+
+  context.strokeStyle="#111";
+  context.beginPath();
+  context.moveTo(left.x,left.y-scale*.75);
+  context.lineTo(left.x,left.y-scale*1.18);
+  context.lineTo(right.x,right.y-scale*1.18);
+  context.lineTo(right.x,right.y-scale*.75);
+  context.stroke();
+
+  const phase=(state.time*40)%Math.max(1,Math.abs(right.x-left.x));
+  const direction=right.x>=left.x?1:-1;
+  for(let i=0;i<5;i++){
+    const x=left.x+direction*((phase+i*28)%Math.max(1,Math.abs(right.x-left.x)));
+    context.fillStyle="#111";
+    context.beginPath();
+    context.arc(x,left.y-scale*1.18,3,0,Math.PI*2);
+    context.fill();
+  }
+
+  context.fillStyle="#111";
+  context.font="12px Courier New";
+  context.textAlign="center";
+  context.fillText(formatNumber(deviceData[obj.deviceType].potential,2)+" volts",center.x,center.y+scale*.72);
+  context.restore();
+
+  obj._screen={x:center.x,y:center.y,r:scale*1.2,depth:center.depth};
+  if(obj===state.selected && !selectionMode){
+    context.strokeStyle="#000";
+    context.lineWidth=2;
+    context.setLineDash([4,3]);
+    context.strokeRect(center.x-scale*2.4,center.y-scale*1.45,scale*4.8,scale*2.4);
+    context.setLineDash([]);
+  }
+}
+
+function renderScene(){
+  resizeCanvas(view);
+  ctx.clearRect(0,0,view.width,view.height);
+  ctx.fillStyle="#ffffff";
+  ctx.fillRect(0,0,view.width,view.height);
+  drawGrid(ctx,view,camera);
+  drawVessel(ctx,view,camera);
+
+  const objects=[...state.molecules,...state.cells,...state.devices];
+  objects.sort((a,b)=>{
+    const pa=cameraTransform({x:a.x,y:a.y,z:a.z},camera);
+    const pb=cameraTransform({x:b.x,y:b.y,z:b.z},camera);
+    return pb.z-pa.z;
+  });
+  objects.forEach(obj=>{
+    if(obj.kind==="molecule") drawMolecule(ctx,view,camera,obj);
+    else if(obj.kind==="cell") drawCell(ctx,view,camera,obj);
+    else drawDevice(ctx,view,camera,obj);
+  });
+}
+
+function renderDetail(){
+  const modal=document.getElementById("detailModal");
+  if(!modal.classList.contains("open")) return;
+  resizeCanvas(detailView);
+  detailCtx.clearRect(0,0,detailView.width,detailView.height);
+  detailCtx.fillStyle="#fff";
+  detailCtx.fillRect(0,0,detailView.width,detailView.height);
+  drawGrid(detailCtx,detailView,detailCamera);
+
+  const obj=state.selected;
+  if(!obj)return;
+
+  if(obj.kind==="molecule"){
+    const clone={...obj,x:0,y:0,z:0,scale:Math.max(1.4,obj.scale*2.5),rx:state.time*.18,ry:state.time*.14,rz:0};
+    drawMolecule(detailCtx,detailView,detailCamera,clone,true);
+  }else if(obj.kind==="cell"){
+    const clone={...obj,x:0,y:0,z:0,scale:2.4};
+    drawCell(detailCtx,detailView,detailCamera,clone,true);
+  }else{
+    const clone={...obj,x:0,y:0,z:0,scale:1.4};
+    drawDevice(detailCtx,detailView,detailCamera,clone,true);
+  }
+}
+
+function updateSelectionPanel(){
+  const obj=state.selected;
+  document.getElementById("selectedType").textContent=obj?capitalize(obj.kind):"None";
+  document.getElementById("selectedName").textContent=obj?obj.name:"None";
+  if(!obj){
+    document.getElementById("selectedFormula").textContent="None";
+    document.getElementById("selectedAtoms").textContent="0";
+    document.getElementById("selectedBonds").textContent="0";
+    return;
+  }
+  if(obj.kind==="molecule"){
+    const model=substanceData[obj.formula];
+    document.getElementById("selectedFormula").textContent=displayFormula(obj.formula);
+    document.getElementById("selectedAtoms").textContent=String(model.atoms.length);
+    document.getElementById("selectedBonds").textContent=String(model.bonds.length);
+  }else if(obj.kind==="cell"){
+    document.getElementById("selectedFormula").textContent=obj.cellType;
+    document.getElementById("selectedAtoms").textContent="Cell-scale model";
+    document.getElementById("selectedBonds").textContent="Not represented";
+  }else{
+    document.getElementById("selectedFormula").textContent=obj.deviceType;
+    document.getElementById("selectedAtoms").textContent="Electrode model";
+    document.getElementById("selectedBonds").textContent="External circuit";
+  }
+}
+
+function capitalize(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
+
+function selectAt(x,y){
+  const objects=[...state.molecules,...state.cells,...state.devices]
+    .filter(o=>o._screen)
+    .sort((a,b)=>a._screen.depth-b._screen.depth);
+  const found=objects.find(o=>Math.hypot(x-o._screen.x,y-o._screen.y)<=o._screen.r+8);
+  state.selected=found||null;
+  updateSelectionPanel();
+  if(found){
+    setStatus("Selected "+found.name);
+    activateTab("selectionPage");
+  }
+}
+
+function openDetail(){
+  if(!state.selected){ log("Select an object before opening detailed inspection."); return; }
+  const modal=document.getElementById("detailModal");
+  modal.classList.add("open");
+  const obj=state.selected;
+  const text=document.getElementById("detailText");
+  if(obj.kind==="molecule"){
+    const model=substanceData[obj.formula];
+    const elementCount={};
+    model.atoms.forEach(a=>elementCount[a.element]=(elementCount[a.element]||0)+1);
+    const mass=model.atoms.reduce((sum,a)=>sum+elementData[a.element].mass,0);
+    text.innerHTML=
+      "<h3>"+model.name+"</h3>"+
+      "<table class='readout'>"+
+      "<tr><td>Formula</td><td>"+displayFormula(obj.formula)+"</td></tr>"+
+      "<tr><td>Physical state</td><td>"+capitalize(model.phase)+"</td></tr>"+
+      "<tr><td>Approximate molar mass</td><td>"+formatNumber(mass,3)+" grams per mole</td></tr>"+
+      "<tr><td>Atoms in model</td><td>"+model.atoms.length+"</td></tr>"+
+      "<tr><td>Bonds in model</td><td>"+model.bonds.length+"</td></tr>"+
+      "</table>"+
+      "<h4>Element composition</h4>"+
+      Object.entries(elementCount).map(([e,c])=>elementData[e].name+": "+c).join("<br>")+
+      "<p class='small'>This molecular shape is a simplified educational representation. Bond lengths and angles are approximate.</p>";
+  }else if(obj.kind==="cell"){
+    const c=cellData[obj.cellType];
+    text.innerHTML="<h3>"+c.name+"</h3><p>"+c.description+"</p><h4>Supported virtual processes</h4>"+c.supports.join("<br>")+"<p class='small'>The cell drawing is intentionally simplified and is not drawn to microscopic scale.</p>";
+  }else{
+    const d=deviceData[obj.deviceType];
+    text.innerHTML="<h3>"+d.name+"</h3><p>"+d.description+"</p><table class='readout'><tr><td>Overall reaction</td><td>"+d.reaction+"</td></tr><tr><td>Nominal potential</td><td>"+formatNumber(d.potential,2)+" volts</td></tr></table><p class='small'>The electrical potential is a simplified standard-condition value for educational use.</p>";
+  }
+}
+
+function activateTab(id){
+  document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active",t.dataset.tab===id));
+  document.querySelectorAll(".tab-page").forEach(p=>p.classList.toggle("active",p.id===id));
+}
+
+function normalizeReactionText(text){
+  let t=text.toLowerCase().trim();
+  const numberWords={one:"1",two:"2",three:"3",four:"4",five:"5",six:"6",seven:"7",eight:"8",nine:"9",ten:"10",twelve:"12",thirty:"30"};
+  Object.entries(numberWords).forEach(([w,n])=>{ t=t.replace(new RegExp("\\b"+w+"\\b","g"),n); });
+  const arrows=["produces","produce","forms","form","makes","make","yields","yield","becomes","become","reacts to form","react to form"];
+  arrows.forEach(w=>{ t=t.replace(new RegExp("\\b"+w+"\\b","g")," -> "); });
+  t=t.replace(/\bplus\b|\bwith\b|\band\b/g," + ");
+  t=t.replace(/\bmolecules?\b|\bgas\b|\bsolution\b/g," ");
+  t=t.replace(/\s+/g," ").trim();
+  return t;
+}
+
+function aliasToFormula(name){
+  const clean=name.trim().toLowerCase();
+  for(const [formula,data] of Object.entries(substanceData)){
+    if(formula.toLowerCase()===clean) return formula;
+    if(data.formula.toLowerCase()===clean) return formula;
+    if(data.name.toLowerCase()===clean) return formula;
+    if(data.aliases.some(a=>a.toLowerCase()===clean)) return formula;
+  }
+  return null;
+}
+
+function parseSide(text){
+  const result={};
+  const parts=text.split("+").map(x=>x.trim()).filter(Boolean);
+  for(const part of parts){
+    const match=part.match(/^(\d+(?:\.\d+)?)?\s*(.+)$/);
+    if(!match) return null;
+    const coefficient=match[1]?Number(match[1]):1;
+    const name=match[2].trim();
+    const formula=aliasToFormula(name);
+    if(!formula) return null;
+    result[formula]=(result[formula]||0)+coefficient;
+  }
+  return result;
+}
+
+function interpretReaction(text){
+  const normalized=normalizeReactionText(text);
+  const parts=normalized.split(/->|→/);
+  if(parts.length!==2) return {ok:false,message:"A reaction verb or arrow is required between reactants and products."};
+  const reactants=parseSide(parts[0]);
+  const products=parseSide(parts[1]);
+  if(!reactants||!products) return {ok:false,message:"One or more substance names could not be recognized."};
+
+  const same=reactions.find(r=>sameStoichiometry(r.reactants,reactants)&&sameStoichiometry(r.products,products));
+  if(same) return {ok:true,reaction:same,message:"Matched built-in reaction: "+same.name+"."};
+
+  const custom={
+    id:"custom_"+Date.now(),
+    name:"Interpreted custom reaction",
+    reactants,products,condition:{},energy:0,rate:0.25,
+    description:"A user-defined virtual reaction loaded through flexible language."
+  };
+  reactions.push(custom);
+  return {ok:true,reaction:custom,message:"Loaded a custom reaction from flexible language."};
+}
+
+function sameStoichiometry(a,b){
+  const ak=Object.keys(a),bk=Object.keys(b);
+  if(ak.length!==bk.length)return false;
+  return ak.every(k=>Math.abs((a[k]||0)-(b[k]||0))<1e-9);
+}
+
+function setupControls(){
+  document.getElementById("addSubstance").addEventListener("click",()=>{
+    const formula=document.getElementById("substanceSelect").value;
+    const amount=Number(document.getElementById("amountInput").value);
+    addSubstance(formula,amount);
+  });
+  document.getElementById("removeSubstance").addEventListener("click",()=>{
+    const formula=document.getElementById("substanceSelect").value;
+    const amount=Number(document.getElementById("amountInput").value);
+    removeSubstance(formula,amount);
+  });
+  document.getElementById("mixButton").addEventListener("click",()=>{
+    state.mixed=true;
+    [...state.molecules,...state.cells].forEach(o=>{
+      o.vx+=randomRange(-0.35,0.35);
+      o.vy+=randomRange(-0.35,0.35);
+      o.vz+=randomRange(-0.35,0.35);
+    });
+    log("The vessel contents were mixed.");
+  });
+  document.getElementById("heatButton").addEventListener("click",()=>{
+    state.temperature=clamp(state.temperature+75,80,1800);
+    log("Temperature increased to "+formatNumber(state.temperature,0)+" kelvin.");
+    updateAllReadouts();
+  });
+  document.getElementById("coolButton").addEventListener("click",()=>{
+    state.temperature=clamp(state.temperature-50,80,1800);
+    log("Temperature decreased to "+formatNumber(state.temperature,0)+" kelvin.");
+    updateAllReadouts();
+  });
+  document.getElementById("igniteButton").addEventListener("click",e=>{
+    state.ignition=!state.ignition;
+    e.target.textContent=state.ignition?"Ignition Applied":"Apply Ignition";
+    log(state.ignition?"Ignition condition enabled.":"Ignition condition removed.");
+  });
+  document.getElementById("lightButton").addEventListener("click",e=>{
+    state.light=!state.light;
+    e.target.textContent=state.light?"Visible Light On":"Visible Light Off";
+    log(state.light?"Visible light enabled.":"Visible light disabled.");
+  });
+  document.getElementById("catalystButton").addEventListener("click",e=>{
+    state.catalyst=!state.catalyst;
+    e.target.textContent=state.catalyst?"Catalyst On":"Catalyst Off";
+    log(state.catalyst?"Catalyst condition enabled.":"Catalyst condition disabled.");
+  });
+  document.getElementById("runReaction").addEventListener("click",()=>startSelectedReaction());
+  document.getElementById("pauseButton").addEventListener("click",e=>{
+    state.paused=!state.paused;
+    e.target.textContent=state.paused?"Resume Motion":"Pause Motion";
+    log(state.paused?"Motion paused.":"Motion resumed.");
+  });
+  document.getElementById("clearButton").addEventListener("click",()=>{
+    state.inventory.clear();
+    state.molecules.length=0;
+    state.cells.length=0;
+    state.devices.length=0;
+    state.reactionJob=null;
+    state.selected=null;
+    state.temperature=298;
+    log("The vessel was cleared.");
+    updateAllReadouts();
+  });
+  document.getElementById("addCell").addEventListener("click",()=>{
+    const type=document.getElementById("cellSelect").value;
+    state.cells.push(createCellObject(type));
+    log("Inserted one "+cellData[type].name.toLowerCase()+".");
+  });
+  document.getElementById("removeCells").addEventListener("click",()=>{
+    state.cells.length=0;
+    if(state.selected&&state.selected.kind==="cell")state.selected=null;
+    log("Removed all biological cells.");
+    updateAllReadouts();
+  });
+  document.getElementById("addDevice").addEventListener("click",()=>{
+    const type=document.getElementById("deviceSelect").value;
+    state.devices.push(createDeviceObject(type));
+    log("Inserted "+deviceData[type].name+".");
+  });
+  document.getElementById("removeDevices").addEventListener("click",()=>{
+    state.devices.length=0;
+    if(state.selected&&state.selected.kind==="device")state.selected=null;
+    log("Removed all electrochemical devices.");
+    updateAllReadouts();
+  });
+  document.getElementById("interpretButton").addEventListener("click",()=>{
+    const result=interpretReaction(document.getElementById("reactionText").value);
+    const box=document.getElementById("interpretResult");
+    box.textContent=result.message;
+    if(result.ok){
+      state.selectedReaction=result.reaction;
+      buildReactionList();
+      log(result.message+" "+formatEquation(result.reaction));
+    }
+  });
+
+  document.querySelectorAll(".tab").forEach(tab=>tab.addEventListener("click",()=>activateTab(tab.dataset.tab)));
+  document.getElementById("inspectButton").addEventListener("click",openDetail);
+  document.getElementById("closeDetail").addEventListener("click",()=>document.getElementById("detailModal").classList.remove("open"));
+  document.getElementById("detailModal").addEventListener("click",e=>{
+    if(e.target.id==="detailModal")e.currentTarget.classList.remove("open");
+  });
+
+  let dragging=false,lastX=0,lastY=0,panMode=false,moved=false;
+  view.addEventListener("contextmenu",e=>e.preventDefault());
+  view.addEventListener("mousedown",e=>{
+    dragging=true;lastX=e.clientX;lastY=e.clientY;panMode=e.button===2;moved=false;view.focus();
+  });
+  window.addEventListener("mouseup",()=>dragging=false);
+  window.addEventListener("mousemove",e=>{
+    if(!dragging)return;
+    const dx=e.clientX-lastX,dy=e.clientY-lastY;
+    if(Math.abs(dx)+Math.abs(dy)>2)moved=true;
+    if(panMode){
+      camera.panX-=dx*0.015;
+      camera.panY+=dy*0.015;
+    }else{
+      camera.yaw+=dx*0.006;
+      camera.pitch=clamp(camera.pitch+dy*0.006,-1.45,1.45);
+    }
+    lastX=e.clientX;lastY=e.clientY;
+  });
+  view.addEventListener("wheel",e=>{
+    e.preventDefault();
+    camera.distance=clamp(camera.distance+e.deltaY*0.012,5,45);
+  },{passive:false});
+  view.addEventListener("click",e=>{
+    if(moved)return;
+    const rect=view.getBoundingClientRect();
+    const ratio=view.width/rect.width;
+    selectAt((e.clientX-rect.left)*ratio,(e.clientY-rect.top)*ratio);
+  });
+  view.addEventListener("dblclick",e=>{
+    const rect=view.getBoundingClientRect();
+    const ratio=view.width/rect.width;
+    selectAt((e.clientX-rect.left)*ratio,(e.clientY-rect.top)*ratio);
+    openDetail();
+  });
+  view.addEventListener("keydown",e=>{
+    const step=e.shiftKey?0.8:0.35;
+    if(e.key==="w"||e.key==="W")camera.panZ-=step;
+    if(e.key==="s"||e.key==="S")camera.panZ+=step;
+    if(e.key==="a"||e.key==="A")camera.panX-=step;
+    if(e.key==="d"||e.key==="D")camera.panX+=step;
+    if(e.key==="q"||e.key==="Q")camera.panY+=step;
+    if(e.key==="e"||e.key==="E")camera.panY-=step;
+  });
+
+  let detailDrag=false,detailLastX=0,detailLastY=0;
+  detailView.addEventListener("mousedown",e=>{detailDrag=true;detailLastX=e.clientX;detailLastY=e.clientY;});
+  window.addEventListener("mouseup",()=>detailDrag=false);
+  window.addEventListener("mousemove",e=>{
+    if(!detailDrag)return;
+    detailCamera.yaw+=(e.clientX-detailLastX)*0.006;
+    detailCamera.pitch=clamp(detailCamera.pitch+(e.clientY-detailLastY)*0.006,-1.45,1.45);
+    detailLastX=e.clientX;detailLastY=e.clientY;
+  });
+  detailView.addEventListener("wheel",e=>{
+    e.preventDefault();
+    detailCamera.distance=clamp(detailCamera.distance+e.deltaY*.01,3,18);
+  },{passive:false});
+}
+
+let lastTime=performance.now();
+let reconcileTimer=0;
+function animate(now){
+  const delta=Math.min(0.05,(now-lastTime)/1000);
+  lastTime=now;
+  state.time+=delta;
+  updateReaction(delta);
+  updateMotion(delta);
+  reconcileTimer+=delta;
+  if(reconcileTimer>0.6){
+    reconcileTimer=0;
+    if(state.reactionJob)reconcileVisuals();
+    else updateAllReadouts();
+  }
+  renderScene();
+  renderDetail();
+  requestAnimationFrame(animate);
+}
+
+function initialLoad(){
+  populateMenus();
+  buildReactionList();
+  setupControls();
+  addSubstance("H2",2,true);
+  addSubstance("O2",1,true);
+  log("Loaded the demonstration reaction: 2 H2 + O2 → 2 H2O.");
+  log("Apply ignition, then start the selected reaction.");
+  updateAllReadouts();
+  requestAnimationFrame(animate);
+}
+
+initialLoad();
+})();
+</script>
+</body>
+</html>
